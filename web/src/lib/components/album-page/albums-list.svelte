@@ -21,7 +21,7 @@
   import { getSelectedAlbumGroupOption, sortAlbums, stringToSortOrder, type AlbumGroup } from '$lib/utils/album-utils';
   import type { ContextMenuPosition } from '$lib/utils/context-menu';
   import { normalizeSearchString } from '$lib/utils/string-utils';
-  import { type AlbumResponseDto, type SharedLinkResponseDto } from '@immich/sdk';
+  import { AlbumUserRole, type AlbumResponseDto, type SharedLinkResponseDto, type UserResponseDto } from '@immich/sdk';
   import { modalManager } from '@immich/ui';
   import { mdiDeleteOutline, mdiDownload, mdiRenameOutline, mdiShareVariantOutline } from '@mdi/js';
   import { groupBy } from 'lodash-es';
@@ -252,9 +252,31 @@
       onUpdate(sharedLink.album);
     }
   };
+
+  const onAlbumShare = ({ albumId, users }: { albumId: string; users: UserResponseDto[] }) => {
+    const addUsersToAlbum = (albums: AlbumResponseDto[]) =>
+      albums.map((album) => {
+        if (album.id !== albumId) {
+          return album;
+        }
+
+        const existingUserIds = new Set(album.albumUsers.map(({ user }) => user.id));
+        const newAlbumUsers = users
+          .filter(({ id }) => !existingUserIds.has(id))
+          .map((user) => ({ user, role: AlbumUserRole.Editor }));
+
+        return {
+          ...album,
+          albumUsers: [...album.albumUsers, ...newAlbumUsers],
+        };
+      });
+
+    ownedAlbums = addUsersToAlbum(ownedAlbums);
+    sharedAlbums = addUsersToAlbum(sharedAlbums);
+  };
 </script>
 
-<OnEvents {onAlbumUpdate} {onAlbumDelete} {onSharedLinkCreate} />
+<OnEvents {onAlbumUpdate} {onAlbumDelete} {onSharedLinkCreate} {onAlbumShare} />
 
 {#if albums.length > 0}
   {#if userSettings.view === AlbumViewMode.Cover}

@@ -14,7 +14,6 @@
   import {
     AlbumUserRole,
     AssetOrder,
-    getAlbumInfo,
     getAllSharedLinks,
     type AlbumResponseDto,
     type SharedLinkResponseDto,
@@ -50,7 +49,7 @@
   const handleRoleSelect = async (user: UserResponseDto, role: AlbumUserRole | 'none') => {
     try {
       if (role === 'none') {
-        await handleRemoveUserFromAlbum(album, user, async () => {
+        await handleRemoveUserFromAlbum(album, user, () => {
           isLoading = true; // Show spinner
         });
         return;
@@ -71,13 +70,21 @@
     }
   };
 
-  const refreshAlbum = async () => {
-    album = await getAlbumInfo({ id: album.id, withoutAssets: true });
+  const onAlbumShare = ({ albumId, users }: { albumId: string; users: UserResponseDto[] }) => {
+    if (album.id !== albumId) {
+      return;
+    }
+
+    const existingUserIds = new Set(album.albumUsers.map(({ user }) => user.id));
+    const newAlbumUsers = users
+      .filter(({ id }) => !existingUserIds.has(id))
+      .map((user) => ({ user, role: AlbumUserRole.Editor }));
+
+    album.albumUsers = [...album.albumUsers, ...newAlbumUsers];
   };
 
-  const onAlbumUserDelete = async ({ userId }: { userId: string }) => {
+  const onAlbumUserDelete = ({ userId }: { userId: string }) => {
     album.albumUsers = album.albumUsers.filter(({ user: { id } }) => id !== userId);
-    await refreshAlbum();
   };
 
   const onSharedLinkCreate = (sharedLink: SharedLinkResponseDto) => {
@@ -118,7 +125,7 @@
 
 <OnEvents
   {onAlbumUserDelete}
-  onAlbumShare={refreshAlbum}
+  {onAlbumShare}
   {onSharedLinkCreate}
   {onSharedLinkDelete}
   onAlbumUpdate={(newAlbum) => (album = newAlbum)}

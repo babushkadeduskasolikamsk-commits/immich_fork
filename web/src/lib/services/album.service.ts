@@ -139,14 +139,18 @@ export const handleAddUsersToAlbum = async (album: AlbumResponseDto, users: User
 
   try {
     await addUsersToAlbum({ id: album.id, addUsersDto: { albumUsers: users.map(({ id }) => ({ userId: id })) } });
-    eventManager.emit('AlbumShare');
+    eventManager.emit('AlbumShare', { albumId: album.id, users });
     return true;
   } catch (error) {
     handleError(error, $t('errors.error_adding_users_to_album'));
   }
 };
 
-export const handleRemoveUserFromAlbum = async (album: AlbumResponseDto, albumUser: UserResponseDto, onConfirmedCallback: () => Promise<void>) => {
+export const handleRemoveUserFromAlbum = async (
+  album: AlbumResponseDto,
+  albumUser: UserResponseDto,
+  onConfirmedCallback: () => void | Promise<void>,
+) => {
   const $t = await getFormatter();
 
   const confirmed = await modalManager.showDialog({
@@ -243,10 +247,11 @@ export const handleConfirmAlbumDelete = async (album: AlbumResponseDto) => {
 export const handleRefreshAlbumsForSharedUsers = async (album: AlbumResponseDto) => {
   const $t = await getFormatter();
   try {
-    eventManager.emit('AlbumShare');
-    await addUsersToAlbum(
-      { id: album.id, addUsersDto: { albumUsers: album.albumUsers.map(({ user }) => ({ userId: user.id })) } }
-    );
+    eventManager.emit('AlbumShare', { albumId: album.id, users: album.albumUsers.map(({ user }) => user) });
+    await addUsersToAlbum({
+      id: album.id,
+      addUsersDto: { albumUsers: album.albumUsers.map(({ user }) => ({ userId: user.id })) },
+    });
     toastManager.success($t('refresh_albums_for_shared_users_toast'));
   } catch (error) {
     handleError(error, $t('errors.unable_to_update_album_info'));
