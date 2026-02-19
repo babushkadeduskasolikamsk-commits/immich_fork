@@ -15,6 +15,7 @@ import type {
   SystemConfigDto,
   TagResponseDto,
   UserAdminResponseDto,
+  UserResponseDto,
   WorkflowResponseDto,
 } from '@immich/sdk';
 
@@ -42,7 +43,7 @@ export type Events = {
   AlbumAddAssets: [];
   AlbumUpdate: [AlbumResponseDto];
   AlbumDelete: [AlbumResponseDto];
-  AlbumShare: [];
+  AlbumShare: [{ albumId: string; users: UserResponseDto[] }];
   AlbumUserUpdate: [{ albumId: string; userId: string; role: AlbumUserRole }];
   AlbumUserDelete: [{ albumId: string; userId: string }];
 
