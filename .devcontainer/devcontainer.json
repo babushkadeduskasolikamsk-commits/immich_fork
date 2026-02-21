@@ -144,9 +144,10 @@
     //  The database name
     "DB_DATABASE_NAME": "${localEnv:DB_DATABASE_NAME:immich}",
     "TRANSLATE_QUERY_API_URL": "http://ImmichExtendedService:4568/api/search/v1/translate-query",
-    "GET_SHARED_USERS_FOR_ALBUM_FULL_API_URL":"http://ImmichExtendedService:4568/api/albumSharing/v1/shared-users",
-    "SHARE_ALBUM_FULL_API_URL":"http://ImmichExtendedService:4568/api/albumSharing/v1/share",
-    "DELETE_USER_FROM_SHARED_ALBUM_FULL_API_URL":"http://ImmichExtendedService:4568/api/albumSharing/v1/unshare",
-    "IS_ALBUM_OWNER_FULL_API_URL":"http://ImmichExtendedService:4568/api/albumSharing/v1/is-owner"
+    "GET_SHARED_USERS_FOR_ALBUM_FULL_API_URL": "http://ImmichExtendedService:4568/api/albumSharing/v1/shared-users",
+    "SHARE_ALBUM_FULL_API_URL": "http://ImmichExtendedService:4568/api/albumSharing/v1/share",
+    "DELETE_USER_FROM_SHARED_ALBUM_FULL_API_URL": "http://ImmichExtendedService:4568/api/albumSharing/v1/unshare",
+    "IS_ALBUM_OWNER_FULL_API_URL": "http://ImmichExtendedService:4568/api/albumSharing/v1/is-owner",
+    "GET_SHARED_USERS_FOR_ALBUMS_BATCH_FULL_API_URL": "http://ImmichExtendedService:4568/api/albumSharing/v1/shared-users-batch"
   }
 }

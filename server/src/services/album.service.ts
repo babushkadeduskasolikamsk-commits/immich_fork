@@ -1,4 +1,8 @@
+/* eslint-disable unicorn/explicit-length-check */
+/* eslint-disable unicorn/no-await-expression-member */
+/* eslint-disable object-shorthand */
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { AlbumUser } from 'src/database';
 import {
   AddUsersDto,
   AlbumInfoDto,
@@ -17,11 +21,26 @@ import {
 } from 'src/dtos/album.dto';
 import { BulkIdErrorReason, BulkIdResponseDto, BulkIdsDto } from 'src/dtos/asset-ids.response.dto';
 import { AuthDto } from 'src/dtos/auth.dto';
-import { AlbumUserRole, Permission } from 'src/enum';
+import { AlbumUserRole, Permission, UserAvatarColor } from 'src/enum';
 import { AlbumAssetCount, AlbumInfoOptions } from 'src/repositories/album.repository';
 import { BaseService } from 'src/services/base.service';
 import { addAssets, removeAssets } from 'src/utils/asset.util';
 import { getPreferences } from 'src/utils/preferences';
+
+
+interface SharedUserDetails {
+  userId: string;
+  role: AlbumUserRole;
+  name: string;
+  email: string;
+  avatarColor: string | null;
+  profileImagePath: string;
+  profileChangedAt: Date;
+}
+
+interface SharedUsersBatchResponse {
+  usersByAlbum: Record<string, Array<SharedUserDetails>>;
+}
 
 @Injectable()
 export class AlbumService extends BaseService {
@@ -62,19 +81,19 @@ export class AlbumService extends BaseService {
     }
 
     // fetch mine shared users per album
+    const albumIdToSharedUsersMap = await this.fetchSharedUsersForAlbums({
+      currentUserId: ownerId,
+      albums:
+        albums.map((srcA) => {
+          return {
+            albumId: srcA.id,
+            albumOwnerId: srcA.ownerId
+          }
+        })
+    })
 
-    const sharedUsersForAlbums = await Promise.all(
-      albums.map(
-        album => this.fetchSharedUsersForAlbum(
-          { user: { id: ownerId } } as AuthDto,
-          album.id,
-          album.ownerId
-        )
-      )
-    )
-
-    for (let i = 0; i <= sharedUsersForAlbums.length - 1; i++) {
-      albums[i].albumUsers = sharedUsersForAlbums?.[i] ?? []
+    for (const album of albums) {
+      album.albumUsers = albumIdToSharedUsersMap?.get(album.id) ?? []
     }
 
     return albums.map((album) => ({
@@ -110,6 +129,67 @@ export class AlbumService extends BaseService {
       lastModifiedAssetTimestamp: albumMetadataForIds?.lastModifiedAssetTimestamp ?? undefined,
       contributorCounts: isShared ? await this.albumRepository.getContributorCounts(album.id) : undefined,
     };
+  }
+
+
+
+  private async fetchSharedUsersForAlbums(batchAlbumRequest: {
+    currentUserId: string,
+    albums: { albumId: string, albumOwnerId: string }[]
+  }): Promise<Map<string, AlbumUser[]>> {
+    const apiUrl = process.env.GET_SHARED_USERS_FOR_ALBUMS_BATCH_FULL_API_URL;
+    if (!apiUrl) {
+      throw new BadRequestException('Batch shared users API URL not configured');
+    }
+
+    const albumIdToSharedUsersMap = new Map<string, AlbumUser[]>();
+
+    if (!batchAlbumRequest.albums.length) {
+      return albumIdToSharedUsersMap;
+    }
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(batchAlbumRequest),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new BadRequestException(
+          `Failed to batch fetch shared users: ${errorData.message || response.statusText}`,
+        );
+      }
+
+      const data = (await response.json()) as {
+        payload: SharedUsersBatchResponse
+      };
+
+      const albumIdToSharedUsersList = data.payload.usersByAlbum;
+
+      for (const albumId of Object.keys(albumIdToSharedUsersList)) {
+        const users: AlbumUser[] = albumIdToSharedUsersList[albumId].map(x => ({
+          role: x.role,
+          user: {
+            id: x.userId,
+            name: x.name,
+            email: x.email,
+            avatarColor: x.avatarColor as UserAvatarColor,
+            profileImagePath: x.profileImagePath,
+            profileChangedAt: new Date(x.profileChangedAt)
+          }
+        }));
+        albumIdToSharedUsersMap.set(albumId, users);
+      }
+
+      return albumIdToSharedUsersMap;
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(`Failed to fetch shared users: ${(error as Error).message}`);
+    }
   }
 
 
